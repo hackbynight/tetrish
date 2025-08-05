@@ -63,7 +63,7 @@ Inter-process communication via pipes and UNIX signals (SIGUSR1/SIGUSR2).
 
 ## License
 
-Original implementation by Kirill Timofeev <kt97679@gmail.com> 2013
+Original implementation by Kirill Timofeev 2013
 
 ## Future Enhancements
 

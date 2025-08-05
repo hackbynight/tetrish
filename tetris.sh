@@ -19,6 +19,7 @@ DROP=5
 TOGGLE_HELP=6
 TOGGLE_NEXT=7
 TOGGLE_COLOR=8
+TOGGLE_GHOST=9
 
 DELAY=1          # initial delay between piece movements
 DELAY_FACTOR=0.8 # this value controld delay decrease for each level up
@@ -38,6 +39,11 @@ PLAYFIELD_H=20
 PLAYFIELD_X=30
 PLAYFIELD_Y=1
 BORDER_COLOR=$YELLOW
+
+# Ghost piece settings
+GHOST_COLOR=$WHITE
+ghost_piece_y=0
+show_ghost=true
 
 # Location and color of score information
 SCORE_X=1
@@ -166,6 +172,7 @@ help=(
 "      q: quit"
 "  c: toggle color"
 "n: toggle show next"
+"g: toggle ghost"
 "h: toggle this help"
 )
 
@@ -260,6 +267,45 @@ clear_current() {
     draw_current "${empty_cell}"
 }
 
+calculate_ghost_y() {
+    # Calculate where the piece would land if dropped
+    local test_y=$current_piece_y
+    
+    # Keep moving down until we hit something
+    while new_piece_location_ok $current_piece_x $((test_y + 1)); do
+        ((test_y++))
+    done
+    
+    ghost_piece_y=$test_y
+}
+
+draw_ghost() {
+    # Don't draw ghost if it's at the same position as current piece
+    [[ $ghost_piece_y -eq $current_piece_y ]] && return
+    [[ $show_ghost == false ]] && return
+    
+    local x y i j
+    # Draw ghost piece with dots
+    for ((j = 0, i = 1; j < 8; j += 2, i = j + 1)) {
+        ((y = ${piece[$current_piece]:$((j + current_piece_rotation * 8)):1} + ghost_piece_y + PLAYFIELD_Y))
+        ((x = ${piece[$current_piece]:$((i + current_piece_rotation * 8)):1} * 2 + current_piece_x * 2 + PLAYFIELD_X))
+        xyprint $x $y ".."
+    }
+}
+
+clear_ghost() {
+    [[ $ghost_piece_y -eq $current_piece_y ]] && return
+    [[ $show_ghost == false ]] && return
+    
+    local x y i j
+    # Clear ghost piece
+    for ((j = 0, i = 1; j < 8; j += 2, i = j + 1)) {
+        ((y = ${piece[$current_piece]:$((j + current_piece_rotation * 8)):1} + ghost_piece_y + PLAYFIELD_Y))
+        ((x = ${piece[$current_piece]:$((i + current_piece_rotation * 8)):1} * 2 + current_piece_x * 2 + PLAYFIELD_X))
+        xyprint $x $y "$empty_cell"
+    }
+}
+
 new_piece_location_ok() {
     # Arguments: 1 - new x coordinate of the piece, 2 - new y coordinate of the piece
     # test if piece can be moved to new location
@@ -284,6 +330,10 @@ get_random_next() {
     ((current_piece_y = 0))
     # check if piece can be placed at this location, if not - game over
     new_piece_location_ok $current_piece_x $current_piece_y || cmd_quit
+    
+    # Calculate and draw ghost for new piece
+    calculate_ghost_y
+    draw_ghost
     show_current
 
     clear_next
@@ -327,6 +377,17 @@ toggle_color() {
     show_current
 }
 
+toggle_ghost() {
+    if [[ $show_ghost == true ]]; then
+        clear_ghost
+        show_ghost=false
+    else
+        show_ghost=true
+        calculate_ghost_y
+        draw_ghost
+    fi
+}
+
 init() {
     local i x1 x2 y
 
@@ -361,7 +422,7 @@ reader() {
     # commands is associative array, which maps pressed keys to commands, sent to controller
     declare -A commands=([A]=$ROTATE [C]=$RIGHT [D]=$LEFT
         [_S]=$ROTATE [_A]=$LEFT [_D]=$RIGHT
-        [_]=$DROP [_Q]=$QUIT [_H]=$TOGGLE_HELP [_N]=$TOGGLE_NEXT [_C]=$TOGGLE_COLOR)
+        [_]=$DROP [_Q]=$QUIT [_H]=$TOGGLE_HELP [_N]=$TOGGLE_NEXT [_C]=$TOGGLE_COLOR [_G]=$TOGGLE_GHOST)
 
     while read -s -n 1 key ; do
         case "$a$b$key" in
@@ -419,9 +480,12 @@ move_piece() {
 # arguments: 1 - new x coordinate, 2 - new y coordinate
 # moves the piece to the new location if possible
     if new_piece_location_ok $1 $2 ; then # if new location is ok
+        clear_ghost                       # clear old ghost position
         clear_current                     # let's wipe out piece current location
         current_piece_x=$1                # update x ...
         current_piece_y=$2                # ... and y of new location
+        calculate_ghost_y                 # recalculate ghost position
+        draw_ghost                        # draw ghost at new position
         show_current                      # and draw piece in new location
         return 0                          # nothing more to do here
     fi                                    # if we could not move piece to new location
@@ -448,8 +512,11 @@ cmd_rotate() {
     current_piece_rotation=$new_rotation                              # set orientation to new
     if new_piece_location_ok $current_piece_x $current_piece_y ; then # check if new orientation is ok
         current_piece_rotation=$old_rotation                          # if yes - restore old orientation
+        clear_ghost                                                   # clear old ghost
         clear_current                                                 # clear piece image
         current_piece_rotation=$new_rotation                          # set new orientation
+        calculate_ghost_y                                             # recalculate ghost position
+        draw_ghost                                                    # draw new ghost
         show_current                                                  # draw piece with new orientation
     else                                                              # if new orientation is not ok
         current_piece_rotation=$old_rotation                          # restore old orientation
@@ -491,6 +558,7 @@ controller() {
     commands[$TOGGLE_HELP]=toggle_help
     commands[$TOGGLE_NEXT]=toggle_next
     commands[$TOGGLE_COLOR]=toggle_color
+    commands[$TOGGLE_GHOST]=toggle_ghost
 
     init
 
