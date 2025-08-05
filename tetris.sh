@@ -25,6 +25,7 @@ DELAY=1          # initial delay between piece movements
 DELAY_FACTOR=0.8 # this value controld delay decrease for each level up
 
 # color codes
+BLACK=0
 RED=1
 GREEN=2
 YELLOW=3
@@ -41,7 +42,7 @@ PLAYFIELD_Y=1
 BORDER_COLOR=$YELLOW
 
 # Ghost piece settings
-GHOST_COLOR=$WHITE
+GHOST_COLOR=$BLACK
 ghost_piece_y=0
 show_ghost=true
 
@@ -222,7 +223,7 @@ draw_piece() {
 
 next_piece=0
 next_piece_rotation=0
-next_piece_color=0
+next_piece_color=$RED
 
 next_on=1 # if this flag is 1 next piece is shown
 
@@ -285,12 +286,15 @@ draw_ghost() {
     [[ $show_ghost == false ]] && return
     
     local x y i j
-    # Draw ghost piece with dots
+    # Draw ghost piece with black color
+    set_fg $GHOST_COLOR
+    set_bg $GHOST_COLOR
     for ((j = 0, i = 1; j < 8; j += 2, i = j + 1)) {
         ((y = ${piece[$current_piece]:$((j + current_piece_rotation * 8)):1} + ghost_piece_y + PLAYFIELD_Y))
         ((x = ${piece[$current_piece]:$((i + current_piece_rotation * 8)):1} * 2 + current_piece_x * 2 + PLAYFIELD_X))
-        xyprint $x $y ".."
+        xyprint $x $y "$filled_cell"
     }
+    reset_colors
 }
 
 clear_ghost() {
