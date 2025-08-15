@@ -170,6 +170,7 @@ help=(
 "      s: up"
 "a: left,  d: right"
 "    space: drop"
+"  down: soft drop"
 "      q: quit"
 "  c: toggle color"
 "n: toggle show next"
@@ -346,6 +347,7 @@ get_random_next() {
     ((next_piece_rotation = RANDOM % (${#piece[$next_piece]} / 8)))
     ((next_piece_color = RANDOM % ${#colors[@]}))
     show_next
+    
 }
 
 draw_border() {
@@ -424,13 +426,13 @@ reader() {
     trap '' SIGUSR1   # SIGUSR1 is ignored
     local -u key a='' b='' cmd esc_ch=$'\x1b'
     # commands is associative array, which maps pressed keys to commands, sent to controller
-    declare -A commands=([A]=$ROTATE [C]=$RIGHT [D]=$LEFT
+    declare -A commands=([A]=$ROTATE [C]=$RIGHT [D]=$LEFT [B]=$DOWN
         [_S]=$ROTATE [_A]=$LEFT [_D]=$RIGHT
         [_]=$DROP [_Q]=$QUIT [_H]=$TOGGLE_HELP [_N]=$TOGGLE_NEXT [_C]=$TOGGLE_COLOR [_G]=$TOGGLE_GHOST)
 
     while read -s -n 1 key ; do
         case "$a$b$key" in
-            "${esc_ch}["[ACD]) cmd=${commands[$key]} ;; # cursor key
+            "${esc_ch}["[ABCD]) cmd=${commands[$key]} ;; # cursor key
             *${esc_ch}${esc_ch}) cmd=$QUIT ;;           # exit on 2 escapes
             *) cmd=${commands[_$key]:-} ;;              # regular key. If space was pressed $key is empty
         esac
